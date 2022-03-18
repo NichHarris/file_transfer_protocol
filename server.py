@@ -14,7 +14,7 @@ def request_input():
     print('\nEnter a valid port (ex: 80, 12000, etc.):\n')
     input(PORT)
 
-# Validate hostname and port
+# TODO: Validate hostname and port
 def is_valid():
     print(PORT)
     print(HOSTNAME)
