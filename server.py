@@ -2,7 +2,6 @@ from multiprocessing import connection
 import os
 from pickle import TRUE
 import socket
-import json
 
 # Default host and port
 PORT = 12000
@@ -20,6 +19,14 @@ def is_valid():
     print(PORT)
     print(HOSTNAME)
     return True
+
+def print_help():
+    print('List of available commands:\n')
+    print('put `{`filename`}`: Transfers file from client machine to server machine\n')
+    print('get `{`filename`}`: Retrieves file from server machine to client machine\n')
+    print('change `{`OldFileName`}` `{`NewFileName`}`: Update the name of a file on server machine\n')
+    print('help: Print out list of available commands\n')
+    print('bye: Exit program and close client connection\n')
 
 # Initialize and run the socket
 def run_server():
