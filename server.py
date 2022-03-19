@@ -1,6 +1,4 @@
-from multiprocessing import connection
 import os
-from pickle import TRUE
 import socket
 
 # Default host and port
@@ -10,14 +8,14 @@ HOSTNAME = 'localhost'
 # Request user input for hostname and port number
 def request_input():
     print('Enter a valid hostname (ex: localhost):\n')
-    input(HOSTNAME)
+    HOSTNAME = input(HOSTNAME)
     print('\nEnter a valid port (ex: 80, 12000, etc.):\n')
-    input(PORT)
+    PORT = input(PORT)
 
 # TODO: Validate hostname and port
 def is_valid():
-    print(PORT)
     print(HOSTNAME)
+    print(PORT)
     return True
 
 def print_help():
@@ -46,8 +44,10 @@ def run_server():
 
                     if not data:
                         break
-
+                    req = data.decode('utf-8')
+                    print(req)
                     print('Request received...\n')
+                    print('Decoding request...\n')
                     
 
         except KeyboardInterrupt:

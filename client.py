@@ -1,7 +1,7 @@
+import binascii
 from msilib.schema import Binary
 import os
 import socket
-from urllib import request
 
 from numpy import binary_repr, size
 
@@ -18,15 +18,15 @@ opcodes = {
 
 # Request user input for hostname and port number
 def request_input():
-    print('Enter a valid hostname (ex: localhost):\n')
-    input(HOSTNAME)
-    print('\nEnter a valid port (ex: 80, 12000, etc.):\n')
-    input(PORT)
+    print('Enter a valid hostname (ex: localhost):')
+    HOSTNAME = input(HOSTNAME)
+    print('\nEnter a valid port (ex: 80, 12000, etc.):')
+    PORT = input(PORT)
 
 # TODO: Validate hostname and port
 def is_valid():
-    print(PORT)
     print(HOSTNAME)
+    print(PORT)
     return True
 
 # TODO: Validate it is a command, validate filename is not too long etc (<32 chars)..
@@ -55,34 +55,44 @@ def format_request(user_cmd: str):
 # TODO: Test
 def format_put(opcode, user_cmd_split: list[str]):
     # Start encoding binary string to be sent to server
-    req = opcode
+    req = '0b'
+
     # Binary of length of filename
-    filename_length = bin(len(user_cmd_split[1].strip()))
-    req = concantenate_bits(req, filename_length)
+    filename_length = len(user_cmd_split[1].strip())
+    req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(filename_length))
+
     # Binary rep of filename
     filename = user_cmd_split[1].strip().encode()
-    req = concantenate_bits(req, filename)
+    filename = str(bin(int(binascii.hexlify(filename), 16)))
+    req = concantenate_bits(req, filename[2:])
+
     # Binary rep of size of file
     file_size = '{:032b}'.format(os.path.getsize(user_cmd_split[1].strip()))
-    req = concantenate_bits(req, file_size)
+    req = concantenate_bits(req, file_size[2:])
+
     # Binary rep of the file itself
-    file_binary = 0b0
-    with open(user_cmd_split[1].strip(), 'rb') as file:
-        file_binary = file.read()
-    req = concantenate_bits(req, file_binary)
+    file_binary = ''
+    with open(user_cmd_split[1].strip(), 'rb') as file: ##
+        file_binary = str(bin(int(binascii.hexlify(file.read()), 16)))
+    req = concantenate_bits(req, file_binary[2:])
+
     print(f'debug format_put(): binary_str {req}\n')
     return req
 
 # TODO: Test
 def format_get(opcode, user_cmd_split: list[str]):
     # Start encoding binary string to be sent to server
-    req = opcode
+    req = '0b'
+
     # Binary of length of filename
-    filename_length = bin(len(user_cmd_split[1].strip()))
-    req = concantenate_bits(req, filename_length)
+    filename_length = len(user_cmd_split[1].strip())
+    req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(filename_length))
+
     # Binary rep of filename
     filename = user_cmd_split[1].strip().encode()
-    req = concantenate_bits(req, filename)
+    filename = str(bin(int(binascii.hexlify(filename), 16)))
+    req = concantenate_bits(req, filename[2:])
+
     print(f'debug format_get(): binary_str {req}\n')
     return req
 
@@ -90,19 +100,24 @@ def format_get(opcode, user_cmd_split: list[str]):
 def format_change(opcode, user_cmd_split: list[str]):
     if (len(user_cmd_split) == 3):
         # Start encoding binary string to be sent to server
-        req = opcode
+        req = '0b'
+
         # Binary of length of old_filename
-        old_filename_length = bin(len(user_cmd_split[1].strip()))
-        req = concantenate_bits(req, old_filename_length)
+        old_filename_length = len(user_cmd_split[1].strip())
+        req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(old_filename_length))
+
         # Binary rep of old_filename
         old_filename = user_cmd_split[1].strip().encode()
-        req = concantenate_bits(req, old_filename)
+        old_filename = str(bin(int(binascii.hexlify(old_filename), 16)))
+        req = concantenate_bits(req, old_filename[2:])
+
         # Binary of length of new_filename
-        new_filename_length = bin(len(user_cmd_split[2].strip()))
-        req = concantenate_bits(req, new_filename_length)
+        new_filename_length = len(user_cmd_split[1].strip())
+        req = concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(new_filename_length))
+
         # Binary rep of new_filename
-        new_filename = user_cmd_split[2].strip().encode()
-        req = concantenate_bits(req, new_filename)
+        new_filename = str(bin(int(binascii.hexlify(new_filename), 16)))
+        req = concantenate_bits(req, new_filename[2:])
 
         print(f'debug format_change(): binary_str {req}\n')
         return req
@@ -110,24 +125,21 @@ def format_change(opcode, user_cmd_split: list[str]):
 
 # TODO: Test
 def format_help(opcode):
-    req = opcode
-    req = concantenate_bits(req, 0b00000)
+    req = '0b'
+    req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(0))
     print(f'debug format_help(): binary_str {req}\n')
     return req
 
 # TODO: Test
 def concantenate_bits(left, right):
-    length = len(left[2:]) + len(right[2:])
-    print(f'debug concantenate_bits(): length is {length}\n')
-    return (left << len(right[2:])) | (right >> len(left[2:]))
+    return left + right
 
 # Take user command request
 def user_requests():
-    user_cmd = ''
-    input(user_cmd)
+    user_cmd = input()
     while(not validate_user_cmd(user_cmd)):
         print('Invalid user command, please input a valid one\n')
-        input(user_cmd)
+        user_cmd = input()
     return user_cmd.strip()
 
 # Start client
@@ -136,7 +148,7 @@ def run_client():
         try:
             s.connect((HOSTNAME, PORT))
             print('Client connected...\n')
-            print('File-Transfer Protocol client active... please enter valid commands\n')
+            print('File-Transfer Protocol client active... please enter valid commands')
 
             while(True):
                 cmd = user_requests()
@@ -144,6 +156,11 @@ def run_client():
                     break
                 req = format_request(cmd)
 
+                s.sendall(req.encode('utf-8'))
+                print('Request sent, awaiting response...\n')
+                
+                res = s.recv(1024)
+                print(res.decode())
 
             print('Closing client socket...\n')
             s.shutdown()
