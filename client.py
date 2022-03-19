@@ -1,11 +1,7 @@
 import binascii
-from msilib.schema import Binary
 import os
-import numpy
 import sys
 import socket
-
-from numpy import binary_repr, dtype, size
 
 # Default host and port
 PORT = 12000
@@ -80,7 +76,6 @@ def format_put(opcode, user_cmd_split: list[str]):
     with open(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}', 'rb') as file: ##
         builder = '{:0' + str(size*8) + 'b}'
         file_binary = str(f'{builder}'.format(int.from_bytes(file.read(), sys.byteorder)))
-
     req = concantenate_bits(req, file_binary)
 
     print(f'debug format_put(): binary_str {req}\n')
@@ -94,7 +89,7 @@ def format_get(opcode, user_cmd_split: list[str]):
     # Binary of length of filename
     filename_length = len(user_cmd_split[1].strip())
     req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(filename_length))
-    print(req)
+
     # Binary rep of filename
     filename = user_cmd_split[1].strip().encode()
     filename = str(bin(int(binascii.hexlify(filename), 16)))
@@ -109,31 +104,26 @@ def format_change(opcode, user_cmd_split: list[str]):
         # Start encoding binary string to be sent to server
         req = '0b'
 
-        print(req)
         # Binary of length of old_filename
         old_filename_length = len(user_cmd_split[1].strip())
         req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(old_filename_length))
 
-        print(req)
         # Binary rep of old_filename
         old_filename = user_cmd_split[1].strip().encode()
         builder = '{:0' + str(old_filename_length*8) + 'b}'
         old_filename = str(f'{builder}'.format(int(binascii.hexlify(old_filename), 16)))
         req = concantenate_bits(req, old_filename)
 
-        print(req)
         # Binary of length of new_filename
         new_filename_length = len(user_cmd_split[2].strip())
         req = concantenate_bits(req, '{:08b}'.format(new_filename_length))
 
-        print(req)
         # Binary rep of old_filename
         new_filename = user_cmd_split[2].strip().encode()
         builder = '{:0' + str(new_filename_length*8) + 'b}'
         new_filename = str(f'{builder}'.format(int(binascii.hexlify(new_filename), 16)))
         req = concantenate_bits(req, new_filename)
         
-        print(req)
         print(f'debug format_change(): binary_str {req}\n')
         return req
     return None

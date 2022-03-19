@@ -2,8 +2,6 @@ import binascii
 from genericpath import exists
 import os
 import sys
-from xml.etree.ElementTree import QName
-import numpy
 import socket
 
 # Default host and port
@@ -88,10 +86,12 @@ def response_change(res, req):
 
     # Check if old file name actually exists
     if (exists(f'{SERVER_FILES_PATH}/{old_filename}')):
-        print(req[last_old_filename_bit_index:last_old_filename_bit_index + 8])
         new_filename_length = int(req[last_old_filename_bit_index:last_old_filename_bit_index + 8], 2)
+
         start_new_filename_bit = last_old_filename_bit_index + 8
+
         last_new_filename_bit_index = start_new_filename_bit + (new_filename_length)*8
+
         new_filename = req[start_new_filename_bit:last_new_filename_bit_index]
         bin_to_int = int(new_filename, 2)
         new_filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
@@ -169,11 +169,12 @@ def run_server():
             print(f'Server is listening to port {PORT} at host {HOSTNAME}...\n')
             print(f'{HOSTNAME}:{PORT}/\n')
 
-            connection, address = s.accept()
-            print('Server connected...\n')
 
-            with connection:
-                while True:
+            while(True):
+                connection, address = s.accept()
+                print('Server connected...\n')
+
+                with connection:
                     data = connection.recv(1024)
 
                     if not data:
