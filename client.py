@@ -13,6 +13,8 @@ import os
 import sys
 import socket
 
+from isort import file
+
 # Default host and port
 PORT = 12000
 HOSTNAME = 'localhost'
@@ -45,110 +47,140 @@ def validate_user_cmd(user_cmd: str):
         return False
     return True
 
+def valid_filename(filename):
+    if (len(filename) > 0 and len(filename) < 32):
+        return True
+    return False
+
 def format_request(user_cmd: str):
     user_cmd_split = user_cmd.split()
     # Binary representation of the instruction opcode
     opcode = opcodes[user_cmd_split[0].strip().lower()]
-    req = 0b0
+    req = ''
+    status = False
+
     # Call appropriate format function
     if (opcode == 0b000):
-        req = format_put(opcode, user_cmd_split)
+        req, status = format_put(opcode, user_cmd_split)
     elif (opcode == 0b001):
-        req = format_get(opcode, user_cmd_split)
+        req, status = format_get(opcode, user_cmd_split)
     elif (opcode == 0b010):
-        req = format_change(opcode, user_cmd_split)
+        req, status = format_change(opcode, user_cmd_split)
     else:
-        req = format_help(opcode)
+        req, status = format_help(opcode)
 
-    return req
+    return req, status
 
 # TODO: Test
 def format_put(opcode, user_cmd_split: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
-    if (exists(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')):
+    # Ensure a valid filename is present
+    if (len(user_cmd_split) != 2):
+        return None, False
+
+    input_filename = user_cmd_split[1].strip()
+    if (not valid_filename(input_filename)):
+        return None, False
+
+    if (exists(f'{CLIENT_FILES_PATH}/{input_filename}')):
         # Binary of length of filename
-        filename_length = len(user_cmd_split[1].strip())
-        req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(filename_length))
+        filename_length = len(input_filename)
+        req += concantenate_bits(f'{opcode:03b}', f'{filename_length:05b}')
 
         # Binary rep of filename
-        filename = user_cmd_split[1].strip().encode()
-        builder = '{:0' + str(filename_length*8) + 'b}'
-        filename = str(f'{builder}'.format(int(binascii.hexlify(filename), 16)))
+        filename = input_filename.encode()
+        filename = f'{int(binascii.hexlify(filename), 16):0{filename_length*8}b}'
         req = concantenate_bits(req, filename)
 
         # Binary rep of size of file
-        size = os.path.getsize(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')
-        file_size = '{:032b}'.format(size)
+        size = os.path.getsize(f'{CLIENT_FILES_PATH}/{input_filename}')
+        file_size = f'{size:032b}'
         req = concantenate_bits(req, file_size)
 
-        # Binary rep of the file itself
-        file_binary = ''
-        with open(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}', 'rb') as file: ##
-            builder = '{:0' + str(size*8) + 'b}'
-            file_binary = str(f'{builder}'.format(int.from_bytes(file.read(), sys.byteorder)))
-        req = concantenate_bits(req, file_binary)
+        # # Binary rep of the file itself
+        # file_binary = ''
+        # with open(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}', 'rb') as file: ##
+        #     builder = '{:0' + str(size*8) + 'b}'
+        #     file_binary = str(f'{builder}'.format(int.from_bytes(file.read(), sys.byteorder)))
+        # req = concantenate_bits(req, file_binary)
 
         print(f'debug format_put(): binary_str {req}\n')
     else:
         print('Error file does not exist on client side...\n')
-        return None
-    return req
+        return None, False
+    return req, True
 
 # TODO: Test
 def format_get(opcode, user_cmd_split: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
+    # Ensure a valid filename is present
+    if (len(user_cmd_split) != 2):
+        return None, False
+    
+    input_filename = user_cmd_split[1].strip()
+    if (not valid_filename(input_filename)):
+        return None, False
+
     # Binary of length of filename
-    filename_length = len(user_cmd_split[1].strip())
-    req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(filename_length))
+    filename_length = len(input_filename)
+    req += concantenate_bits(f'{opcode:03b}', f'{filename_length:05b}')
 
     # Binary rep of filename
-    filename = user_cmd_split[1].strip().encode()
-    filename = str(bin(int(binascii.hexlify(filename), 16)))
-    req = concantenate_bits(req, filename[2:])
+    filename = input_filename.encode()
+    filename = f'{int(binascii.hexlify(filename), 16):0{filename_length*8}b}'
+    req = concantenate_bits(req, filename)
 
     print(f'debug format_get(): binary_str {req}\n')
-    return req
+    return req, True
 
 # TODO: Test
 def format_change(opcode, user_cmd_split: list[str]):
-    if (len(user_cmd_split) == 3):
-        # Start encoding binary string to be sent to server
-        req = '0b'
+    # Start encoding binary string to be sent to server
+    req = '0b'
 
-        # Binary of length of old_filename
-        old_filename_length = len(user_cmd_split[1].strip())
-        req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(old_filename_length))
+    # Ensure a valid filename is present
+    if (len(user_cmd_split) != 3):
+        return None, False
 
-        # Binary rep of old_filename
-        old_filename = user_cmd_split[1].strip().encode()
-        builder = '{:0' + str(old_filename_length*8) + 'b}'
-        old_filename = str(f'{builder}'.format(int(binascii.hexlify(old_filename), 16)))
-        req = concantenate_bits(req, old_filename)
+    input_old_filename = user_cmd_split[1].strip()
+    input_new_filename = user_cmd_split[2].strip()
 
-        # Binary of length of new_filename
-        new_filename_length = len(user_cmd_split[2].strip())
-        req = concantenate_bits(req, '{:08b}'.format(new_filename_length))
+    if (not valid_filename(input_old_filename)):
+        return None, False
+    if (not valid_filename(input_new_filename)):
+        return None, False
 
-        # Binary rep of old_filename
-        new_filename = user_cmd_split[2].strip().encode()
-        builder = '{:0' + str(new_filename_length*8) + 'b}'
-        new_filename = str(f'{builder}'.format(int(binascii.hexlify(new_filename), 16)))
-        req = concantenate_bits(req, new_filename)
-        
-        print(f'debug format_change(): binary_str {req}\n')
-        return req
-    return None
+    # Binary rep of length of old_filename
+    old_filename_length = len(input_old_filename)
+    req += concantenate_bits(f'{opcode:03b}', f'{old_filename_length:05b}')
+
+    # Binary rep of old_filename
+    old_filename = input_old_filename.encode()
+    old_filename = f'{int(binascii.hexlify(old_filename), 16):0{old_filename_length*8}b}'
+    req = concantenate_bits(req, old_filename)
+
+    # Binary rep of length of new_filename
+    new_filename_length = len(input_new_filename)
+    req = concantenate_bits(req, f'{new_filename_length:08b}')
+
+    # Binary rep of new_filename
+    new_filename = input_new_filename.encode()
+    new_filename = f'{int(binascii.hexlify(new_filename), 16):0{new_filename_length*8}b}'
+    req = concantenate_bits(req, new_filename)
+    
+    print(f'debug format_change(): binary_str {req}\n')
+    return req, True
 
 # TODO: Test
 def format_help(opcode):
     req = '0b'
-    req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(0))
+    req += concantenate_bits(f'{opcode:03b}', f'{0:05b}')
     print(f'debug format_help(): binary_str {req}\n')
-    return req
+    return req, True
 
 # TODO: Test
 def concantenate_bits(left, right):
@@ -172,13 +204,15 @@ def run_client():
 
             while(True):
                 print('Enter FTP commands:')
+
                 cmd = user_requests()
                 if (cmd.lower() == 'bye'):
                     break
-                req = format_request(cmd)
 
-                s.sendall(req.encode())
-                print('Request sent, awaiting response...\n')
+                req, success = format_request(cmd)
+                if (success):
+                    s.sendall(req.encode())
+                    print('Request sent, awaiting response...')
                 
                 data = s.recv(1024)
                 res = data.decode()
