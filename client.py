@@ -1,14 +1,17 @@
 import binascii
 from msilib.schema import Binary
 import os
+import numpy
+import sys
 import socket
 
-from numpy import binary_repr, size
+from numpy import binary_repr, dtype, size
 
 # Default host and port
 PORT = 12000
 HOSTNAME = 'localhost'
-
+CLIENT_FILES_PATH = 'client_files'
+SERVER_FILES_PATH = 'server_files'
 opcodes = {
     'put': 0b000,
     'get': 0b001,
@@ -19,9 +22,9 @@ opcodes = {
 # Request user input for hostname and port number
 def request_input():
     print('Enter a valid hostname (ex: localhost):')
-    HOSTNAME = input(HOSTNAME)
+    input(HOSTNAME)
     print('\nEnter a valid port (ex: 80, 12000, etc.):')
-    PORT = input(PORT)
+    input(PORT)
 
 # TODO: Validate hostname and port
 def is_valid():
@@ -63,18 +66,23 @@ def format_put(opcode, user_cmd_split: list[str]):
 
     # Binary rep of filename
     filename = user_cmd_split[1].strip().encode()
-    filename = str(bin(int(binascii.hexlify(filename), 16)))
-    req = concantenate_bits(req, filename[2:])
+    builder = '{:0' + str(filename_length*8) + 'b}'
+    filename = str(f'{builder}'.format(int(binascii.hexlify(filename), 16)))
+    req = concantenate_bits(req, filename)
 
     # Binary rep of size of file
-    file_size = '{:032b}'.format(os.path.getsize(user_cmd_split[1].strip()))
-    req = concantenate_bits(req, file_size[2:])
+    size = os.path.getsize(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')
+    file_size = '{:032b}'.format(size)
+    size = os.path.getsize(F'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')
+    req = concantenate_bits(req, file_size)
 
     # Binary rep of the file itself
     file_binary = ''
-    with open(user_cmd_split[1].strip(), 'rb') as file: ##
-        file_binary = str(bin(int(binascii.hexlify(file.read()), 16)))
-    req = concantenate_bits(req, file_binary[2:])
+    with open(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}', 'rb') as file: ##
+        builder = '{:0' + str(size*8) + 'b}'
+        file_binary = str(f'{builder}'.format(int.from_bytes(file.read(), sys.byteorder)))
+
+    req = concantenate_bits(req, file_binary)
 
     print(f'debug format_put(): binary_str {req}\n')
     return req
@@ -156,7 +164,7 @@ def run_client():
                     break
                 req = format_request(cmd)
 
-                s.sendall(req.encode('utf-8'))
+                s.sendall(req.encode())
                 print('Request sent, awaiting response...\n')
                 
                 res = s.recv(1024)
