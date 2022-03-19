@@ -1,23 +1,24 @@
 """ 
 Nicholas Harris
 40111093
-COEN 366 - FTP Project
+COEN 366 - FTP Project Client File
 Section: WJ-X
 
 I, Nicholas Harris, am the sole author of the file
 """
 
 import binascii
+from genericpath import exists
 import os
 import sys
 import socket
-from tkinter import S
 
 # Default host and port
 PORT = 12000
 HOSTNAME = 'localhost'
 CLIENT_FILES_PATH = 'client_files'
 SERVER_FILES_PATH = 'server_files'
+
 opcodes = {
     'put': 0b000,
     'get': 0b001,
@@ -66,29 +67,33 @@ def format_put(opcode, user_cmd_split: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
-    # Binary of length of filename
-    filename_length = len(user_cmd_split[1].strip())
-    req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(filename_length))
+    if (exists(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')):
+        # Binary of length of filename
+        filename_length = len(user_cmd_split[1].strip())
+        req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(filename_length))
 
-    # Binary rep of filename
-    filename = user_cmd_split[1].strip().encode()
-    builder = '{:0' + str(filename_length*8) + 'b}'
-    filename = str(f'{builder}'.format(int(binascii.hexlify(filename), 16)))
-    req = concantenate_bits(req, filename)
+        # Binary rep of filename
+        filename = user_cmd_split[1].strip().encode()
+        builder = '{:0' + str(filename_length*8) + 'b}'
+        filename = str(f'{builder}'.format(int(binascii.hexlify(filename), 16)))
+        req = concantenate_bits(req, filename)
 
-    # Binary rep of size of file
-    size = os.path.getsize(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')
-    file_size = '{:032b}'.format(size)
-    req = concantenate_bits(req, file_size)
+        # Binary rep of size of file
+        size = os.path.getsize(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')
+        file_size = '{:032b}'.format(size)
+        req = concantenate_bits(req, file_size)
 
-    # Binary rep of the file itself
-    file_binary = ''
-    with open(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}', 'rb') as file: ##
-        builder = '{:0' + str(size*8) + 'b}'
-        file_binary = str(f'{builder}'.format(int.from_bytes(file.read(), sys.byteorder)))
-    req = concantenate_bits(req, file_binary)
+        # Binary rep of the file itself
+        file_binary = ''
+        with open(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}', 'rb') as file: ##
+            builder = '{:0' + str(size*8) + 'b}'
+            file_binary = str(f'{builder}'.format(int.from_bytes(file.read(), sys.byteorder)))
+        req = concantenate_bits(req, file_binary)
 
-    print(f'debug format_put(): binary_str {req}\n')
+        print(f'debug format_put(): binary_str {req}\n')
+    else:
+        print('Error file does not exist on client side...\n')
+        return None
     return req
 
 # TODO: Test
@@ -163,12 +168,11 @@ def run_client():
         try:
             s.connect((HOSTNAME, PORT))
 
+
             while(True):
                 print('Client connected...\n')
                 print('File-Transfer Protocol client active...')
-                
-                
-                print('Enter FTP commands:\n')
+                print('Enter FTP commands:')
                 cmd = user_requests()
                 if (cmd.lower() == 'bye'):
                     break
@@ -178,7 +182,6 @@ def run_client():
                 print('Request sent, awaiting response...\n')
                 
                 data = s.recv(1024)
-                    
                 res = data.decode()
                 print(res)
 

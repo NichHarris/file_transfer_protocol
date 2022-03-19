@@ -1,7 +1,7 @@
 """ 
 Nicholas Harris
 40111093
-COEN 366 - FTP Project
+COEN 366 - FTP Project Server File
 Section: WJ-X
 
 I, Nicholas Harris, am the sole author of the file
@@ -25,7 +25,6 @@ FILE_NOT_FOUND = 0b010
 UNKNOWN_REQ = 0b011
 FAIL_CHANGE = 0b101
 HELP = 0b110
-
 
 # Request user input for hostname and port number
 def request_input():
@@ -168,17 +167,18 @@ def run_server():
             s.bind((HOSTNAME, PORT))
             s.listen()
             print(f'Server is listening to port {PORT} at host {HOSTNAME}...\n')
-            print(f'{HOSTNAME}:{PORT}/\n')
+            print(f'https://{HOSTNAME}:{PORT}/\n')
 
+            connection, address = s.accept()
             while(True):
-                connection, address = s.accept()
-                print('Server connected...\n')
+                print('Server connected to client...\n')
 
                 data = connection.recv(1024)
-
                 if not data:
-                    print('Listening for connection...')
+                    print('Client disconnected...\n')
                     connection.close()
+                    print('Listening for connection...')
+                    connection, address = s.accept()
                     continue
 
                 req = data.decode()
