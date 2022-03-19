@@ -167,11 +167,10 @@ def run_client():
     with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
         try:
             s.connect((HOSTNAME, PORT))
-
+            print('Client connected...')
+            print('File-Transfer Protocol client active...\n')
 
             while(True):
-                print('Client connected...\n')
-                print('File-Transfer Protocol client active...')
                 print('Enter FTP commands:')
                 cmd = user_requests()
                 if (cmd.lower() == 'bye'):
@@ -185,12 +184,11 @@ def run_client():
                 res = data.decode()
                 print(res)
 
-            print('Closing client socket...\n')
-            s.shutdown()
+            print('\nClosing client socket...')
         except KeyboardInterrupt:
-            print('Closing socket due to keyboard interrupt')
+            print('\nClosing socket due to keyboard interrupt')
         except Exception:
-            print('Closing socket due to exception')
+            print('\nClosing socket due to exception')
 
 
 # Main program execution
@@ -200,7 +198,7 @@ if __name__ == '__main__':
 
     # Validate input hostname and port number
     while(not is_valid()):
-        print('\nInvalid port number and hostname... try again\n')
+        print('\nInvalid port number and hostname... try again')
         request_input()
 
     # Start client
