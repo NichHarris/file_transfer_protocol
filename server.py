@@ -1,3 +1,12 @@
+""" 
+Nicholas Harris
+40111093
+COEN 366 - FTP Project
+Section: WJ-X
+
+I, Nicholas Harris, am the sole author of the file
+"""
+
 import binascii
 from genericpath import exists
 import os
@@ -139,14 +148,6 @@ def unsuccessful_change(res):
     return res
 
 def response_help(res):
-    # help_str = ''
-    # help_str += 'List of available commands:\n'
-    # help_str += 'put `{`filename`}`: Transfers file from client machine to server machine\n'
-    # help_str += 'get `{`filename`}`: Retrieves file from server machine to client machine\n'
-    # help_str += 'change `{`OldFileName`}` `{`NewFileName`}`: Update the name of a file on server machine\n'
-    # help_str += 'help: Print out list of available commands\n'
-    # help_str += 'bye: Exit program and close client connection\n'
-
     # String rep of help str
     help_str = 'Help: get put change help bye'
     # Binary rep of rescode
@@ -169,28 +170,25 @@ def run_server():
             print(f'Server is listening to port {PORT} at host {HOSTNAME}...\n')
             print(f'{HOSTNAME}:{PORT}/\n')
 
-
             while(True):
                 connection, address = s.accept()
                 print('Server connected...\n')
 
-                with connection:
-                    data = connection.recv(1024)
+                data = connection.recv(1024)
 
-                    if not data:
-                        break
+                if not data:
+                    print('Listening for connection...')
+                    connection.close()
+                    continue
 
-                    req = data.decode()
-                    print('Request received...\n')
-                    print('Decoding request...\n')
+                req = data.decode()
+                print('Request received...\n')
+                print('Decoding request...\n')
 
-                    res = decode_request(req)
-                    connection.sendall(res.encode())
-                    
-                    
-
-        except KeyboardInterrupt:
-            print('Closing socket due to keyboard interrupt')
+                res = decode_request(req)
+                connection.sendall(res.encode())
+        except Exception:
+            print('Closing socket due to exception')
 
 
 # Main program execution
@@ -208,3 +206,6 @@ if __name__ == '__main__':
 
     print('Hostname and port accepted... attempting to run server\n')
     run_server()
+
+    # Terminate program
+    print('Exiting program...\n')

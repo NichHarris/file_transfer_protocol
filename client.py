@@ -1,7 +1,17 @@
+""" 
+Nicholas Harris
+40111093
+COEN 366 - FTP Project
+Section: WJ-X
+
+I, Nicholas Harris, am the sole author of the file
+"""
+
 import binascii
 import os
 import sys
 import socket
+from tkinter import S
 
 # Default host and port
 PORT = 12000
@@ -152,10 +162,13 @@ def run_client():
     with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
         try:
             s.connect((HOSTNAME, PORT))
-            print('Client connected...\n')
-            print('File-Transfer Protocol client active... please enter valid commands')
 
             while(True):
+                print('Client connected...\n')
+                print('File-Transfer Protocol client active...')
+                
+                
+                print('Enter FTP commands:\n')
                 cmd = user_requests()
                 if (cmd.lower() == 'bye'):
                     break
@@ -164,14 +177,17 @@ def run_client():
                 s.sendall(req.encode())
                 print('Request sent, awaiting response...\n')
                 
-                res = s.recv(1024)
-                print(res.decode())
+                data = s.recv(1024)
+                    
+                res = data.decode()
+                print(res)
 
             print('Closing client socket...\n')
             s.shutdown()
-
         except KeyboardInterrupt:
             print('Closing socket due to keyboard interrupt')
+        except Exception:
+            print('Closing socket due to exception')
 
 
 # Main program execution
