@@ -43,9 +43,9 @@ def decode_request(req):
     elif(req[2:5] == '000'):
         return response_put(res, req)
     elif(req[2:5] == '001'):
-        return response_get(res)
+        return response_get(res, req)
     elif(req[2:5] == '010'):
-        return response_change(res)
+        return response_change(res, req)
     else:
         return unkwn_req(res)
 
@@ -85,28 +85,31 @@ def response_change(res, req):
     old_filename = req[10:last_old_filename_bit_index]
     bin_to_int = int(old_filename, 2)
     old_filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
-    print(old_filename)
-    if (exists(f'{SERVER_FILES_PATH}/{old_filename}')):
-        # Binary rep of sucessful put
-        res += '{:03b}'.format(PUT_CHANGE)
-        res += '{:05b}'.format(0)
-    else:
-        res = error_file(res)
 
-    new_filename_length = int(req[last_old_filename_bit_index:last_old_filename_bit_index + 8], 2)
-    last_new_filename_bit_index = 2 + 8 + (new_filename_length)*8
-    new_filename = req[10:last_new_filename_bit_index]
-    bin_to_int = int(new_filename, 2)
-    new_filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
-    print(new_filename)
-    if (exists(f'{SERVER_FILES_PATH}/{new_filename}')):
-        # Binary rep of sucessful put
-        res += '{:03b}'.format(PUT_CHANGE)
-        res += '{:05b}'.format(0)
+    # Check if old file name actually exists
+    if (exists(f'{SERVER_FILES_PATH}/{old_filename}')):
+        print(req[last_old_filename_bit_index:last_old_filename_bit_index + 8])
+        new_filename_length = int(req[last_old_filename_bit_index:last_old_filename_bit_index + 8], 2)
+        start_new_filename_bit = last_old_filename_bit_index + 8
+        last_new_filename_bit_index = start_new_filename_bit + (new_filename_length)*8
+        new_filename = req[start_new_filename_bit:last_new_filename_bit_index]
+        bin_to_int = int(new_filename, 2)
+        new_filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
+
+        # Rename file
+        os.rename(f'{SERVER_FILES_PATH}/{old_filename}', f'{SERVER_FILES_PATH}/{new_filename}')
+
+        # Final check for updated name
+        if (exists(f'{SERVER_FILES_PATH}/{new_filename}')):
+            # Binary rep of sucessful put
+            res += '{:03b}'.format(PUT_CHANGE)
+            res += '{:05b}'.format(0)
+        else:
+            res = unsuccessful_change(res)
     else:
         res = error_file(res)
-    
-    return True  
+  
+    return res  
 
 # TODO: Test
 def error_file(res):
@@ -177,7 +180,6 @@ def run_server():
                         break
 
                     req = data.decode()
-                    print(req)
                     print('Request received...\n')
                     print('Decoding request...\n')
 

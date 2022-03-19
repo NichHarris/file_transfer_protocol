@@ -73,7 +73,6 @@ def format_put(opcode, user_cmd_split: list[str]):
     # Binary rep of size of file
     size = os.path.getsize(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')
     file_size = '{:032b}'.format(size)
-    size = os.path.getsize(F'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}')
     req = concantenate_bits(req, file_size)
 
     # Binary rep of the file itself
@@ -95,7 +94,7 @@ def format_get(opcode, user_cmd_split: list[str]):
     # Binary of length of filename
     filename_length = len(user_cmd_split[1].strip())
     req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(filename_length))
-
+    print(req)
     # Binary rep of filename
     filename = user_cmd_split[1].strip().encode()
     filename = str(bin(int(binascii.hexlify(filename), 16)))
@@ -110,23 +109,31 @@ def format_change(opcode, user_cmd_split: list[str]):
         # Start encoding binary string to be sent to server
         req = '0b'
 
+        print(req)
         # Binary of length of old_filename
         old_filename_length = len(user_cmd_split[1].strip())
         req += concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(old_filename_length))
 
+        print(req)
         # Binary rep of old_filename
         old_filename = user_cmd_split[1].strip().encode()
-        old_filename = str(bin(int(binascii.hexlify(old_filename), 16)))
-        req = concantenate_bits(req, old_filename[2:])
+        builder = '{:0' + str(old_filename_length*8) + 'b}'
+        old_filename = str(f'{builder}'.format(int(binascii.hexlify(old_filename), 16)))
+        req = concantenate_bits(req, old_filename)
 
+        print(req)
         # Binary of length of new_filename
-        new_filename_length = len(user_cmd_split[1].strip())
-        req = concantenate_bits('{:03b}'.format(opcode), '{:05b}'.format(new_filename_length))
+        new_filename_length = len(user_cmd_split[2].strip())
+        req = concantenate_bits(req, '{:08b}'.format(new_filename_length))
 
-        # Binary rep of new_filename
-        new_filename = str(bin(int(binascii.hexlify(new_filename), 16)))
-        req = concantenate_bits(req, new_filename[2:])
-
+        print(req)
+        # Binary rep of old_filename
+        new_filename = user_cmd_split[2].strip().encode()
+        builder = '{:0' + str(new_filename_length*8) + 'b}'
+        new_filename = str(f'{builder}'.format(int(binascii.hexlify(new_filename), 16)))
+        req = concantenate_bits(req, new_filename)
+        
+        print(req)
         print(f'debug format_change(): binary_str {req}\n')
         return req
     return None
