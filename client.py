@@ -52,35 +52,35 @@ def valid_filename(filename):
         return True
     return False
 
-def format_request(user_cmd: str):
-    user_cmd_split = user_cmd.split()
+def format_request(user_cmd: list[str]):
     # Binary representation of the instruction opcode
-    opcode = opcodes[user_cmd_split[0].strip().lower()]
+    opcode = opcodes[user_cmd[0].strip().lower()]
     req = ''
-    status = False
+    status, is_put = False, False
 
     # Call appropriate format function
     if (opcode == 0b000):
-        req, status = format_put(opcode, user_cmd_split)
+        req, status = format_put(opcode, user_cmd)
+        is_put = True
     elif (opcode == 0b001):
-        req, status = format_get(opcode, user_cmd_split)
+        req, status = format_get(opcode, user_cmd)
     elif (opcode == 0b010):
-        req, status = format_change(opcode, user_cmd_split)
+        req, status = format_change(opcode, user_cmd)
     else:
         req, status = format_help(opcode)
 
-    return req, status
+    return req, status, is_put
 
 # TODO: Test
-def format_put(opcode, user_cmd_split: list[str]):
+def format_put(opcode, user_cmd: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
     # Ensure a valid filename is present
-    if (len(user_cmd_split) != 2):
+    if (len(user_cmd) != 2):
         return None, False
 
-    input_filename = user_cmd_split[1].strip()
+    input_filename = user_cmd[1].strip()
     if (not valid_filename(input_filename)):
         return None, False
 
@@ -99,13 +99,6 @@ def format_put(opcode, user_cmd_split: list[str]):
         file_size = f'{size:032b}'
         req = concantenate_bits(req, file_size)
 
-        # # Binary rep of the file itself
-        # file_binary = ''
-        # with open(f'{CLIENT_FILES_PATH}/{user_cmd_split[1].strip()}', 'rb') as file: ##
-        #     builder = '{:0' + str(size*8) + 'b}'
-        #     file_binary = str(f'{builder}'.format(int.from_bytes(file.read(), sys.byteorder)))
-        # req = concantenate_bits(req, file_binary)
-
         print(f'debug format_put(): binary_str {req}\n')
     else:
         print('Error file does not exist on client side...\n')
@@ -113,22 +106,22 @@ def format_put(opcode, user_cmd_split: list[str]):
     return req, True
 
 # TODO: Test
-def format_get(opcode, user_cmd_split: list[str]):
+def format_get(opcode, user_cmd: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
     # Ensure a valid filename is present
-    if (len(user_cmd_split) != 2):
+    if (len(user_cmd) != 2):
         return None, False
     
-    input_filename = user_cmd_split[1].strip()
+    input_filename = user_cmd[1].strip()
     if (not valid_filename(input_filename)):
         return None, False
 
     # Binary of length of filename
     filename_length = len(input_filename)
     req += concantenate_bits(f'{opcode:03b}', f'{filename_length:05b}')
-
+    print(f'{filename_length:05b}')
     # Binary rep of filename
     filename = input_filename.encode()
     filename = f'{int(binascii.hexlify(filename), 16):0{filename_length*8}b}'
@@ -138,16 +131,16 @@ def format_get(opcode, user_cmd_split: list[str]):
     return req, True
 
 # TODO: Test
-def format_change(opcode, user_cmd_split: list[str]):
+def format_change(opcode, user_cmd: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
     # Ensure a valid filename is present
-    if (len(user_cmd_split) != 3):
+    if (len(user_cmd) != 3):
         return None, False
 
-    input_old_filename = user_cmd_split[1].strip()
-    input_new_filename = user_cmd_split[2].strip()
+    input_old_filename = user_cmd[1].strip()
+    input_new_filename = user_cmd[2].strip()
 
     if (not valid_filename(input_old_filename)):
         return None, False
@@ -192,7 +185,7 @@ def user_requests():
     while(not validate_user_cmd(user_cmd)):
         print('Invalid user command, please input a valid one\n')
         user_cmd = input()
-    return user_cmd.strip()
+    return user_cmd.strip().split()
 
 # Start client
 def run_client():
@@ -206,12 +199,22 @@ def run_client():
                 print('Enter FTP commands:')
 
                 cmd = user_requests()
-                if (cmd.lower() == 'bye'):
+                if (cmd[0].lower() == 'bye'):
                     break
 
-                req, success = format_request(cmd)
+                req, success, is_put = format_request(cmd)
                 if (success):
-                    s.sendall(req.encode())
+                    s.send(req.encode())
+                    if (is_put):
+                        with open(f'{CLIENT_FILES_PATH}/{cmd[1]}', 'rb') as file:
+                            for line in file.readlines():
+                                file_data = line
+                                line_size = int(len(line.hex())/2)
+
+                                # Binary rep of the line data
+                                line_data = f'{int(binascii.hexlify(file_data), 16):0{line_size*8}b}' 
+                                s.send(line_data.encode())
+
                     print('Request sent, awaiting response...')
                 
                 data = s.recv(1024)
@@ -221,8 +224,8 @@ def run_client():
             print('\nClosing client socket...')
         except KeyboardInterrupt:
             print('\nClosing socket due to keyboard interrupt')
-        except Exception:
-            print('\nClosing socket due to exception')
+        except Exception as e:
+            print('\nClosing socket due to exception: ' + e)
 
 
 # Main program execution
