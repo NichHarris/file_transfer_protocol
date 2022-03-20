@@ -18,6 +18,7 @@ PORT = 12000
 HOSTNAME = 'localhost'
 CLIENT_FILES_PATH = 'client_files'
 SERVER_FILES_PATH = 'server_files'
+DEBUG_MODE = False
 
 PUT_CHANGE = 0b000
 GET = 0b001
@@ -41,26 +42,28 @@ def is_valid():
 
 def decode_request(req):
     res = '0b'
+    success, is_get = False, False
+    last_bit, file_size, filename = 0, 0, None
     print(req)
     if (req[2:5] == '011'):
         res = response_help(res)
-
         print(f'debug response_help(): binary_str {res}\n')
-        return res, 0, 0, None
     elif(req[2:5] == '000'):
-        return response_put(res, req)
+        success, res, last_bit, file_size, filename = response_put(res, req)
     elif(req[2:5] == '001'):
-        return response_get(res, req), 0, 0, None
+        is_get = True
+        success, res, filename = response_get(res, req)
     elif(req[2:5] == '010'):
-        return response_change(res, req), 0, 0, None
+        success, res, filename = response_change(res, req)
     else:
-        return unkwn_req(res), 0, 0, None
+        res = unkwn_req(res)
+    return success, res, last_bit, file_size, filename, is_get
 
 # TODO: Test 
 def response_put(res, req):
     filename_length = int(req[5:10], 2)
 
-    last_filename_bit_index = 10 + (filename_length)*8
+    last_filename_bit_index = 10 + filename_length*8
     filename = req[10:last_filename_bit_index]
     bin_to_int = int(filename, 2)
     filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
@@ -73,47 +76,71 @@ def response_put(res, req):
     if (len(req) > last_bit_of_req):
         print(req[last_bit_of_req:])
 
-    return res, last_bit_of_req, file_size_bits, filename
+    return True, res, last_bit_of_req, file_size_bits, filename
 
 # TODO: 
 def response_get(res, req):
-    return True  
+    res += GET
+    success = False
+    filename_size = req[5:10]
+    res += filename_size
+
+    filename_bin = req[10:]
+    bin_to_int = int(filename_bin, 2)
+    filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
+    print(filename)
+    res += filename_bin
+    
+    if (exists(f'{SERVER_FILES_PATH}/{filename}')):
+        size = os.path.getsize(f'{SERVER_FILES_PATH}/{filename}')
+        file_size = f'{size:032b}'
+        print(file_size)
+        res += file_size
+        success = True
+        print(f'debug response_get(): binary_str {res}\n')
+    else:
+        res = error_file(res)
+    return success, res, filename
 
 # TODO: 
 def response_change(res, req):
+    success = False
     old_filename_length = int(req[5:10], 2)
 
-    last_old_filename_bit_index = 2 + 8 + (old_filename_length)*8
+    last_old_filename_bit_index = 10 + old_filename_length*8
     old_filename = req[10:last_old_filename_bit_index]
     bin_to_int = int(old_filename, 2)
     old_filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
 
+    new_filename = None
     # Check if old file name actually exists
     if (exists(f'{SERVER_FILES_PATH}/{old_filename}')):
         new_filename_length = int(req[last_old_filename_bit_index:last_old_filename_bit_index + 8], 2)
 
         start_new_filename_bit = last_old_filename_bit_index + 8
 
-        last_new_filename_bit_index = start_new_filename_bit + (new_filename_length)*8
+        last_new_filename_bit_index = start_new_filename_bit + new_filename_length*8
 
         new_filename = req[start_new_filename_bit:last_new_filename_bit_index]
         bin_to_int = int(new_filename, 2)
         new_filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
 
-        # Rename file
-        os.rename(f'{SERVER_FILES_PATH}/{old_filename}', f'{SERVER_FILES_PATH}/{new_filename}')
-
-        # Final check for updated name
+        # Check if new filename already exists
         if (exists(f'{SERVER_FILES_PATH}/{new_filename}')):
-            # Binary rep of sucessful put
-            res += f'{PUT_CHANGE:03b}'
-            res += f'{0:05b}'
-        else:
             res = unsuccessful_change(res)
+        else:
+            # Rename file
+            os.rename(f'{SERVER_FILES_PATH}/{old_filename}', f'{SERVER_FILES_PATH}/{new_filename}')
+
+            # Check if name updated successfully
+            if (exists(f'{SERVER_FILES_PATH}/{new_filename}')):
+                success = True
+            else:
+                res = unsuccessful_change(res)
     else:
-        res = error_file(res)
+        res = unsuccessful_change(res)
   
-    return res  
+    return success, res, new_filename
 
 # TODO: Test
 def error_file(res):
@@ -178,38 +205,58 @@ def run_server():
                     continue
 
                 req = data.decode()
-                print('Request received...\n')
+                print('Request received...')
                 print('Decoding request...\n')
 
-                res, last_bit_of_req, file_size_bits, filename = decode_request(req)
+                success, res, last_bit_of_req, file_size_bits, filename, is_get = decode_request(req)
 
-                file_data = ''
-                # Means there is some data passed within the request
-                if (len(req) > last_bit_of_req):
-                    print(req[last_bit_of_req:])
-                    file_data = req[last_bit_of_req:]
+                print(res)
+                if (success):
+                    if (is_get):
+                        # generate response
+                        connection.send(res.encode())
+                        with open(f'{SERVER_FILES_PATH}/{filename}', 'rb') as file:
+                            for line in file.readlines():
+                                file_lines = line
+                                line_size = int(len(line.hex())/2)
 
-                file_data_remaining = file_size_bits - len(file_data)
-                while (file_data_remaining > 0):
-                    data = connection.recv(1024)
-                    data = data.decode()
-                    file_data += data
-                    file_data_remaining = file_size_bits - len(file_data)
+                                # Binary rep of line data
+                                line_data = f'{int(binascii.hexlify(file_lines), 16):0{line_size*8}b}'
+                                print(line_data)
+                                connection.send(line_data.encode())
+                    else:
+                        file_data = ''
+                        # Means there is some data passed within the request
+                        if (len(req) > last_bit_of_req):
+                            print(req[last_bit_of_req:])
+                            file_data = req[last_bit_of_req:]
 
-                bin_to_int = int(file_data, 2)
-                file_data = binascii.unhexlify('%x' % bin_to_int)
-                with open(f'{SERVER_FILES_PATH}/{filename}', 'wb') as file:
-                    file.write(file_data)
-                
-                if (exists(f'{SERVER_FILES_PATH}/{filename}')):
-                    # Binary rep of sucessful put
-                    res += f'{PUT_CHANGE:03b}'
-                    res += f'{0:05b}'
+                        file_data_remaining = file_size_bits - len(file_data)
+                        while (file_data_remaining > 0):
+                            data = connection.recv(1024)
+                            data = data.decode()
+                            file_data += data
+                            file_data_remaining = file_size_bits - len(file_data)
+
+                        bin_to_int = int(file_data, 2)
+                        file_data = binascii.unhexlify('%x' % bin_to_int)
+                        with open(f'{SERVER_FILES_PATH}/{filename}', 'wb') as file:
+                            file.write(file_data)
+
+                        if (exists(f'{SERVER_FILES_PATH}/{filename}')):
+                            # Binary rep of sucessful put
+                            res += f'{PUT_CHANGE:03b}'
+                            res += f'{0:05b}'
+                        else:
+                            res = error_file(res)
+
+                        # generate response
+                        connection.send(res.encode())
                 else:
-                    res = error_file(res)
-
-                # generate response
-                connection.sendall(res.encode())
+                    # generate response
+                    connection.send(res.encode())
+                
+                print('Response sent...')
         except Exception as e:
             print('Closing socket due to exception:' + e)
 

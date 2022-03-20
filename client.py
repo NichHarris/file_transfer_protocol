@@ -20,6 +20,7 @@ PORT = 12000
 HOSTNAME = 'localhost'
 CLIENT_FILES_PATH = 'client_files'
 SERVER_FILES_PATH = 'server_files'
+DEBUG_MODE = False
 
 opcodes = {
     'put': 0b000,
@@ -122,6 +123,7 @@ def format_get(opcode, user_cmd: list[str]):
     filename_length = len(input_filename)
     req += concantenate_bits(f'{opcode:03b}', f'{filename_length:05b}')
     print(f'{filename_length:05b}')
+
     # Binary rep of filename
     filename = input_filename.encode()
     filename = f'{int(binascii.hexlify(filename), 16):0{filename_length*8}b}'
@@ -208,11 +210,11 @@ def run_client():
                     if (is_put):
                         with open(f'{CLIENT_FILES_PATH}/{cmd[1]}', 'rb') as file:
                             for line in file.readlines():
-                                file_data = line
+                                file_lines = line
                                 line_size = int(len(line.hex())/2)
 
                                 # Binary rep of the line data
-                                line_data = f'{int(binascii.hexlify(file_data), 16):0{line_size*8}b}' 
+                                line_data = f'{int(binascii.hexlify(file_lines), 16):0{line_size*8}b}' 
                                 s.send(line_data.encode())
 
                     print('Request sent, awaiting response...')
@@ -230,6 +232,9 @@ def run_client():
 
 # Main program execution
 if __name__ == '__main__':
+
+    # TODO: Add support for CLI arg -d --debug for debug mode
+
     # Ask for user to input valid hostname and port number
     request_input()
 
