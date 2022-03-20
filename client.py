@@ -8,8 +8,8 @@ I, Nicholas Harris, am the sole author of the file
 """
 
 import binascii
-from fileinput import filename
 from genericpath import exists
+from operator import concat
 import os
 import sys
 import socket
@@ -22,6 +22,7 @@ HOSTNAME = 'localhost'
 CLIENT_FILES_PATH = 'client_files'
 SERVER_FILES_PATH = 'server_files'
 DEBUG_MODE = False
+DEV_MODE = False
 
 opcodes = {
     'put': 0b000,
@@ -44,9 +45,22 @@ def is_valid():
     return True
 
 # TODO: Validate it is a command, validate filename is not too long etc (<32 chars)..
-def validate_user_cmd(user_cmd: str):
-    if (user_cmd.strip() == ''):
-        return False
+def validate_user_cmd(user_cmd: list[str]):
+    is_valid = True
+    if (len(user_cmd) == 0):
+        is_valid = False
+
+    if (len(user_cmd) == 3):
+        if len(user_cmd[2]) > 31:
+            is_valid = False
+
+    if (len(user_cmd) >= 2):
+        if len(user_cmd[1]) > 31:
+            is_valid = False
+    
+    if (len(user_cmd) > 3):
+        is_valid = False
+    
     return True
 
 def valid_filename(filename):
@@ -56,7 +70,10 @@ def valid_filename(filename):
 
 def format_request(user_cmd: list[str]):
     # Binary representation of the instruction opcode
-    opcode = opcodes[user_cmd[0].strip().lower()]
+    opcode = user_cmd[0].strip().lower()
+    if opcode in opcodes:
+        opcode = opcodes[opcode]
+
     req = ''
     status, is_put = False, False
 
@@ -68,10 +85,18 @@ def format_request(user_cmd: list[str]):
         req, status = format_get(opcode, user_cmd)
     elif (opcode == 0b010):
         req, status = format_change(opcode, user_cmd)
-    else:
+    elif (opcode == 0b011):
         req, status = format_help(opcode)
+    else:
+        req, status = format_unknown(user_cmd)
 
     return req, status, is_put
+
+def format_unknown(user_cmd):
+    req = '0b'
+    req += f'{255:08b}'
+    return req, True
+
 
 # TODO: Test
 def format_put(opcode, user_cmd: list[str]):
@@ -101,7 +126,8 @@ def format_put(opcode, user_cmd: list[str]):
         file_size = f'{size:032b}'
         req = concantenate_bits(req, file_size)
 
-        print(f'debug format_put(): binary_str {req}\n')
+        if (DEV_MODE):
+            print(f'debug format_put(): binary_str {req}\n')
     else:
         print('Error file does not exist on client side...\n')
         return None, False
@@ -123,14 +149,14 @@ def format_get(opcode, user_cmd: list[str]):
     # Binary of length of filename
     filename_length = len(input_filename)
     req += concantenate_bits(f'{opcode:03b}', f'{filename_length:05b}')
-    print(f'{filename_length:05b}')
 
     # Binary rep of filename
     filename = input_filename.encode()
     filename = f'{int(binascii.hexlify(filename), 16):0{filename_length*8}b}'
     req = concantenate_bits(req, filename)
 
-    print(f'debug format_get(): binary_str {req}\n')
+    if (DEV_MODE):
+        print(f'debug format_get(): binary_str {req}\n')
     return req, True
 
 # TODO: Test
@@ -168,14 +194,18 @@ def format_change(opcode, user_cmd: list[str]):
     new_filename = f'{int(binascii.hexlify(new_filename), 16):0{new_filename_length*8}b}'
     req = concantenate_bits(req, new_filename)
     
-    print(f'debug format_change(): binary_str {req}\n')
+
+    if (DEV_MODE):
+        print(f'debug format_change(): binary_str {req}\n')
     return req, True
 
 # TODO: Test
 def format_help(opcode):
     req = '0b'
     req += concantenate_bits(f'{opcode:03b}', f'{0:05b}')
-    print(f'debug format_help(): binary_str {req}\n')
+    
+    if (DEV_MODE):
+        print(f'debug format_help(): binary_str {req}\n')
     return req, True
 
 # TODO: Test
@@ -185,44 +215,53 @@ def concantenate_bits(left, right):
 # Take user command request
 def user_requests():
     user_cmd = input()
-    while(not validate_user_cmd(user_cmd)):
+    while(not validate_user_cmd(user_cmd.strip().split())):
         print('Invalid user command, please input a valid one\n')
         user_cmd = input()
     return user_cmd.strip().split()
 
-def decode_response(res):
+def decode_response(res, cmd):
     last_bit_of_res, file_size_bits, filename, is_get = 0, 0, None, False
     
     if (res[2:5] == '000'):
-        successfull_get_change()
+        successfull_put_change(cmd)
     elif(res[2:5] == '001'):
         is_get = True
         last_bit_of_res, file_size_bits, filename = response_get(res)
     elif(res[2:5] == '010'):
-        error_file_not_found()
+        error_file_not_found(cmd)
     elif(res[2:5] == '011'):
-        error_unknown_request()
+        error_unknown_request(cmd)
     elif(res[2:5] == '101'):
-        unsuccessful_change()
+        unsuccessful_change(cmd)
     elif(res[2:5] == '110'):
-        help_response()
+        help_response(res)
 
     return last_bit_of_res, file_size_bits, filename, is_get
 
-def successfull_get_change():
-    print('Server successfully executed command')
+def successfull_put_change(cmd):
+    if (len(cmd) == 2):
+        print(f'{cmd[1]} has been uploaded successfully.')
+    if (len(cmd) == 3):
+        print(f'{cmd[1]} has been change into {cmd[2]}.')
 
-def error_file_not_found():
-    print('Server successfully executed command')
+def error_file_not_found(cmd):
+    if (len(cmd) == 2):
+        print(f'Error get request for {cmd[1]} failed. File is not present on server side...')
 
-def error_unknown_request():
-    print('Server successfully executed command')
+def error_unknown_request(cmd: list[str]):
+    cmd = ' '.join(cmd)
+    print(f'Command: {cmd} is not supported.')
 
-def unsuccessful_change():
-    print('Server successfully executed command')
+def unsuccessful_change(cmd):
+    if (len(cmd) == 3):
+        print(f'Error changing {cmd[1]} to {cmd[2]}.')
 
-def help_response():
-    print('Server successfully executed command')
+def help_response(res):
+    help_msg = res[10:]
+    bin_to_int = int(help_msg, 2)
+    help_msg = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
+    print(help_msg)
 
 def response_get(res):
     filename_length = int(res[5:10], 2)
@@ -269,15 +308,12 @@ def run_client():
                 
                 data = s.recv(1024)
                 res = data.decode()
-                print(res)
+                last_bit_of_res, file_size_bits, filename, is_get = decode_response(res, cmd)
 
-                last_bit_of_res, file_size_bits, filename, is_get = decode_response(res)
                 if (is_get):
-                    
                     file_data = ''
                     # Incase some data was passed with response
                     if (len(res) > last_bit_of_res):
-                        print(res[last_bit_of_res:])
                         file_data = req[0:]
 
                     # Receive file
@@ -293,6 +329,9 @@ def run_client():
                     file_data = binascii.unhexlify('%x' % bin_to_int)
                     with open(f'{CLIENT_FILES_PATH}/{filename}', 'wb') as file:
                         file.write(file_data)
+                    
+                    if (exists(f'{CLIENT_FILES_PATH}/{filename}')):
+                        print(f'{filename} has been downloaded successfully.')
 
             print('\nClosing client socket...')
         except KeyboardInterrupt:

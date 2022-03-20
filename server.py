@@ -19,6 +19,7 @@ HOSTNAME = 'localhost'
 CLIENT_FILES_PATH = 'client_files'
 SERVER_FILES_PATH = 'server_files'
 DEBUG_MODE = False
+DEV_MODE = False
 
 PUT_CHANGE = 0b000
 GET = 0b001
@@ -42,22 +43,22 @@ def is_valid():
 
 def decode_request(req):
     res = '0b'
-    success, is_get = False, False
+    success, is_get, is_put = False, False, False
     last_bit, file_size, filename = 0, 0, None
-    print(req)
+
     if (req[2:5] == '011'):
         res = response_help(res)
         print(f'debug response_help(): binary_str {res}\n')
     elif(req[2:5] == '000'):
+        is_put = True
         success, res, last_bit, file_size, filename = response_put(res, req)
     elif(req[2:5] == '001'):
-        is_get = True
-        success, res, filename = response_get(res, req)
+        success, res, filename, is_get = response_get(res, req)
     elif(req[2:5] == '010'):
         success, res, filename = response_change(res, req)
     else:
         res = unkwn_req(res)
-    return success, res, last_bit, file_size, filename, is_get
+    return success, res, last_bit, file_size, filename, is_get, is_put
 
 # TODO: Test 
 def response_put(res, req):
@@ -76,6 +77,7 @@ def response_put(res, req):
 
 # TODO: 
 def response_get(res, req):
+    is_get = True
     res += req[2:5]
     success = False
     filename_size = req[5:10]
@@ -85,17 +87,20 @@ def response_get(res, req):
     bin_to_int = int(filename_bin, 2)
     filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
     res += filename_bin
-    
+    print(filename)
     if (exists(f'{SERVER_FILES_PATH}/{filename}')):
         size = os.path.getsize(f'{SERVER_FILES_PATH}/{filename}')
         file_size = f'{size:032b}'
         res += file_size
         success = True
-        
-        print(f'debug response_get(): binary_str {res}\n')
+
+        if (DEV_MODE):
+            print(f'debug response_get(): binary_str {res}\n')
     else:
+        res = '0b'
         res = error_file(res)
-    return success, res, filename
+        is_get = False
+    return success, res, filename, is_get
 
 # TODO: 
 def response_change(res, req):
@@ -143,7 +148,8 @@ def error_file(res):
     res += f'{FILE_NOT_FOUND:03b}'
     res += f'{0:05b}'
 
-    print(f'debug error_file(): binary_str {res}\n')
+    if (DEV_MODE):
+        print(f'debug error_file(): binary_str {res}\n')
     return res
 
 # TODO: Test
@@ -152,7 +158,8 @@ def unkwn_req(res):
     res += f'{UNKNOWN_REQ:03b}'
     res += f'{0:05b}'
 
-    print(f'debug unkwn_req(): binary_str {res}\n')
+    if (DEV_MODE):
+        print(f'debug unkwn_req(): binary_str {res}\n')
     return res
 
 # TODO: Test
@@ -161,7 +168,8 @@ def unsuccessful_change(res):
     res += f'{FAIL_CHANGE:03b}'
     res += f'{0:05b}'
 
-    print(f'debug unsuccessful_change(): binary_str {res}\n')
+    if (DEV_MODE):
+        print(f'debug unsuccessful_change(): binary_str {res}\n')
     return res
 
 def response_help(res):
@@ -203,7 +211,7 @@ def run_server():
                 print('Request received...')
                 print('Decoding request...\n')
 
-                success, res, last_bit_of_req, file_size_bits, filename, is_get = decode_request(req)
+                success, res, last_bit_of_req, file_size_bits, filename, is_get, is_put = decode_request(req)
                 if (success):
                     if (is_get):
                         # generate response
@@ -217,22 +225,23 @@ def run_server():
                                 line_data = f'{int(binascii.hexlify(file_lines), 16):0{line_size*8}b}'
                                 connection.send(line_data.encode())
                     else:
-                        file_data = ''
-                        # Means there is some data passed within the request
-                        if (len(req) > last_bit_of_req):
-                            file_data = req[last_bit_of_req:]
+                        if (is_put):
+                            file_data = ''
+                            # Means there is some data passed within the request
+                            if (len(req) > last_bit_of_req):
+                                file_data = req[last_bit_of_req:]
 
-                        file_data_remaining = file_size_bits - len(file_data)
-                        while (file_data_remaining > 0):
-                            data = connection.recv(1024)
-                            data = data.decode()
-                            file_data += data
                             file_data_remaining = file_size_bits - len(file_data)
+                            while (file_data_remaining > 0):
+                                data = connection.recv(1024)
+                                data = data.decode()
+                                file_data += data
+                                file_data_remaining = file_size_bits - len(file_data)
 
-                        bin_to_int = int(file_data, 2)
-                        file_data = binascii.unhexlify('%x' % bin_to_int)
-                        with open(f'{SERVER_FILES_PATH}/{filename}', 'wb') as file:
-                            file.write(file_data)
+                            bin_to_int = int(file_data, 2)
+                            file_data = binascii.unhexlify('%x' % bin_to_int)
+                            with open(f'{SERVER_FILES_PATH}/{filename}', 'wb') as file:
+                                file.write(file_data)
 
                         if (exists(f'{SERVER_FILES_PATH}/{filename}')):
                             # Binary rep of sucessful put
