@@ -9,16 +9,13 @@ I, Nicholas Harris, am the sole author of the file
 
 import binascii
 from genericpath import exists
-from operator import concat
 import os
 import sys
 import socket
 
-from isort import file
-
 # Default host and port
 PORT = 12000
-HOSTNAME = 'localhost'
+HOSTNAME = '127.0.0.1'
 CLIENT_FILES_PATH = 'client_files'
 SERVER_FILES_PATH = 'server_files'
 DEBUG_MODE = False
@@ -37,12 +34,6 @@ def request_input():
     input(HOSTNAME)
     print('\nEnter a valid port (ex: 80, 12000, etc.):')
     input(PORT)
-
-# TODO: Validate hostname and port
-def is_valid():
-    print(HOSTNAME)
-    print(PORT)
-    return True
 
 # TODO: Validate it is a command, validate filename is not too long etc (<32 chars)..
 def validate_user_cmd(user_cmd: list[str]):
@@ -335,7 +326,7 @@ def run_client():
 
             print('\nClosing client socket...')
         except KeyboardInterrupt:
-            print('\nClosing socket due to keyboard interrupt')
+            print('\nClosing socket due to keyboard interrupt...')
         except Exception as e:
             print('\nClosing socket due to exception: ' + e)
 
@@ -343,15 +334,16 @@ def run_client():
 # Main program execution
 if __name__ == '__main__':
 
-    # TODO: Add support for CLI arg -d --debug for debug mode
-
-    # Ask for user to input valid hostname and port number
-    request_input()
-
-    # Validate input hostname and port number
-    while(not is_valid()):
-        print('\nInvalid port number and hostname... try again')
-        request_input()
+    for i, arg in enumerate(sys.argv):
+        print(arg)
+        if i == 1:
+            HOSTNAME = str(arg)
+        elif i == 2:
+            PORT = int(arg)
+        elif i == 3:
+            DEBUG_MODE = int(arg)
+        elif i == 4:
+            DEV_MODE = int(arg)
 
     # Start client
     print(f'Hostname and port accepted... attempting to connect client to port {PORT}\n')

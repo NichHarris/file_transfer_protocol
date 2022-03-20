@@ -15,7 +15,7 @@ import socket
 
 # Default host and port
 PORT = 12000
-HOSTNAME = 'localhost'
+HOSTNAME = '127.0.0.1'
 CLIENT_FILES_PATH = 'client_files'
 SERVER_FILES_PATH = 'server_files'
 DEBUG_MODE = False
@@ -35,12 +35,6 @@ def request_input():
     print('\nEnter a valid port (ex: 80, 12000, etc.):\n')
     input(PORT)
 
-# TODO: Validate hostname and port
-def is_valid():
-    print(HOSTNAME)
-    print(PORT)
-    return True
-
 def decode_request(req):
     res = '0b'
     success, is_get, is_put = False, False, False
@@ -48,7 +42,6 @@ def decode_request(req):
 
     if (req[2:5] == '011'):
         res = response_help(res)
-        print(f'debug response_help(): binary_str {res}\n')
     elif(req[2:5] == '000'):
         is_put = True
         success, res, last_bit, file_size, filename = response_put(res, req)
@@ -184,6 +177,8 @@ def response_help(res):
     # Binary rep of help str TODO: Change this?
     res += str(bin(int(binascii.hexlify(help_str.encode()), 16)))
 
+    if (DEV_MODE):
+        print(f'debug response_help(): binary_str {res}\n')
     return res
 
 # Initialize and run the socket
@@ -193,7 +188,6 @@ def run_server():
             s.bind((HOSTNAME, PORT))
             s.listen()
             print(f'Server is listening to port {PORT} at host {HOSTNAME}...\n')
-            print(f'https://{HOSTNAME}:{PORT}/\n')
 
             connection, address = s.accept()
             while(True):
@@ -264,16 +258,18 @@ def run_server():
 # Main program execution
 if __name__ == '__main__':
 
-    # TODO: Add support for CLI arg -d --debug for debug mode
-
-    # Ask for user to input valid hostname and port number
-    request_input()
-
-    # Validate input hostname and port number
-    while(not is_valid()):
-        print('\nInvalid port number and hostname... try again\n')
-        request_input()
-
+    for i, arg in enumerate(sys.argv):
+        print(arg)
+        if i == 1:
+            HOSTNAME = str(arg)
+        elif i == 2:
+            PORT = int(arg)
+        elif i == 3:
+            DEBUG_MODE = int(arg)
+        elif i == 4:
+            DEV_MODE = int(arg)
+    
+    # Start client
     print('Hostname and port accepted... attempting to run server\n')
     run_server()
 
