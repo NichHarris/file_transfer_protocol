@@ -8,6 +8,7 @@ I, Nicholas Harris, am the sole author of the file
 """
 
 import binascii
+from fileinput import filename
 from genericpath import exists
 import os
 import sys
@@ -189,6 +190,53 @@ def user_requests():
         user_cmd = input()
     return user_cmd.strip().split()
 
+def decode_response(res):
+    last_bit_of_res, file_size_bits, filename, is_get = 0, 0, None, False
+    
+    if (res[2:5] == '000'):
+        successfull_get_change()
+    elif(res[2:5] == '001'):
+        is_get = True
+        last_bit_of_res, file_size_bits, filename = response_get(res)
+    elif(res[2:5] == '010'):
+        error_file_not_found()
+    elif(res[2:5] == '011'):
+        error_unknown_request()
+    elif(res[2:5] == '101'):
+        unsuccessful_change()
+    elif(res[2:5] == '110'):
+        help_response()
+
+    return last_bit_of_res, file_size_bits, filename, is_get
+
+def successfull_get_change():
+    print('Server successfully executed command')
+
+def error_file_not_found():
+    print('Server successfully executed command')
+
+def error_unknown_request():
+    print('Server successfully executed command')
+
+def unsuccessful_change():
+    print('Server successfully executed command')
+
+def help_response():
+    print('Server successfully executed command')
+
+def response_get(res):
+    filename_length = int(res[5:10], 2)
+    last_filename_bit_index = 10 + filename_length*8
+    filename = res[10:last_filename_bit_index]
+    bin_to_int = int(filename, 2)
+    filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
+
+    last_bit_of_res = last_filename_bit_index + 4*8
+    file_size = int(res[last_filename_bit_index:last_bit_of_res], 2)
+    file_size_bits = file_size*8
+
+    return last_bit_of_res, file_size_bits, filename
+
 # Start client
 def run_client():
     with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
@@ -222,6 +270,29 @@ def run_client():
                 data = s.recv(1024)
                 res = data.decode()
                 print(res)
+
+                last_bit_of_res, file_size_bits, filename, is_get = decode_response(res)
+                if (is_get):
+                    
+                    file_data = ''
+                    # Incase some data was passed with response
+                    if (len(res) > last_bit_of_res):
+                        print(res[last_bit_of_res:])
+                        file_data = req[0:]
+
+                    # Receive file
+                    file_data_remaining = file_size_bits - len(file_data)
+                    while (file_data_remaining > 0):
+                        data = s.recv(1024)
+                        data = data.decode()
+                        file_data += data
+                        file_data_remaining = file_size_bits - len(file_data)
+                    
+                    # Write to file
+                    bin_to_int = int(file_data, 2)
+                    file_data = binascii.unhexlify('%x' % bin_to_int)
+                    with open(f'{CLIENT_FILES_PATH}/{filename}', 'wb') as file:
+                        file.write(file_data)
 
             print('\nClosing client socket...')
         except KeyboardInterrupt:

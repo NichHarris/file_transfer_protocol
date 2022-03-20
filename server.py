@@ -71,16 +71,12 @@ def response_put(res, req):
     last_bit_of_req = last_filename_bit_index + 4*8
     file_size = int(req[last_filename_bit_index:last_bit_of_req], 2)
     file_size_bits = file_size*8
-    
-    # Means there is some data passed within the request
-    if (len(req) > last_bit_of_req):
-        print(req[last_bit_of_req:])
 
     return True, res, last_bit_of_req, file_size_bits, filename
 
 # TODO: 
 def response_get(res, req):
-    res += GET
+    res += req[2:5]
     success = False
     filename_size = req[5:10]
     res += filename_size
@@ -88,15 +84,14 @@ def response_get(res, req):
     filename_bin = req[10:]
     bin_to_int = int(filename_bin, 2)
     filename = binascii.unhexlify('%x' % bin_to_int).decode('ascii')
-    print(filename)
     res += filename_bin
     
     if (exists(f'{SERVER_FILES_PATH}/{filename}')):
         size = os.path.getsize(f'{SERVER_FILES_PATH}/{filename}')
         file_size = f'{size:032b}'
-        print(file_size)
         res += file_size
         success = True
+        
         print(f'debug response_get(): binary_str {res}\n')
     else:
         res = error_file(res)
@@ -209,8 +204,6 @@ def run_server():
                 print('Decoding request...\n')
 
                 success, res, last_bit_of_req, file_size_bits, filename, is_get = decode_request(req)
-
-                print(res)
                 if (success):
                     if (is_get):
                         # generate response
@@ -222,13 +215,11 @@ def run_server():
 
                                 # Binary rep of line data
                                 line_data = f'{int(binascii.hexlify(file_lines), 16):0{line_size*8}b}'
-                                print(line_data)
                                 connection.send(line_data.encode())
                     else:
                         file_data = ''
                         # Means there is some data passed within the request
                         if (len(req) > last_bit_of_req):
-                            print(req[last_bit_of_req:])
                             file_data = req[last_bit_of_req:]
 
                         file_data_remaining = file_size_bits - len(file_data)
