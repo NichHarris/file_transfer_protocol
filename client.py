@@ -52,7 +52,7 @@ def validate_user_cmd(user_cmd: list[str]):
     if (len(user_cmd) > 3):
         is_valid = False
     
-    return True
+    return is_valid
 
 def valid_filename(filename):
     if (len(filename) > 0 and len(filename) < 32):
@@ -207,7 +207,7 @@ def concantenate_bits(left, right):
 def user_requests():
     user_cmd = input()
     while(not validate_user_cmd(user_cmd.strip().split())):
-        print('Invalid user command, please input a valid one\n')
+        print('Invalid user command, please input a valid one:')
         user_cmd = input()
     return user_cmd.strip().split()
 
