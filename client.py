@@ -21,6 +21,7 @@ SERVER_FILES_PATH = 'server_files'
 DEBUG_MODE = False
 DEV_MODE = False
 
+# 3 bit opcodes for each command
 opcodes = {
     'put': 0b000,
     'get': 0b001,
@@ -28,6 +29,7 @@ opcodes = {
     'help': 0b011
 }
 
+# Check command input by user is formatted correctly
 def validate_user_cmd(user_cmd: list[str]):
     is_valid = True
     if (len(user_cmd) == 0):
@@ -46,11 +48,13 @@ def validate_user_cmd(user_cmd: list[str]):
     
     return is_valid
 
+# Verify filename is less than 32 bits
 def valid_filename(filename):
     if (len(filename) > 0 and len(filename) < 32):
         return True
     return False
 
+# Format the user's command into the request format
 def format_request(user_cmd: list[str]):
     # Binary representation of the instruction opcode
     opcode = user_cmd[0].strip().lower()
@@ -75,22 +79,25 @@ def format_request(user_cmd: list[str]):
 
     return req, status, is_put
 
+# Format for unknown opcode
 def format_unknown():
     req = '0b'
     req += f'{255:08b}'
     return req, True
 
-# TODO: Test
+# Format put request
 def format_put(opcode, user_cmd: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
-    # Ensure a valid filename is present
+    # Ensure a valid number of arguments
     if (len(user_cmd) != 2):
         print(f'Too many arguments for command type {user_cmd[0]}')
         return None, False
 
     input_filename = user_cmd[1].strip()
+
+    # Ensure a valid filename is present
     if (not valid_filename(input_filename)):
         print(f'Filename {input_filename} is too long, maximum of 31 characters')
         return None, False
@@ -117,16 +124,19 @@ def format_put(opcode, user_cmd: list[str]):
         return None, False
     return req, True
 
+# Format get request
 def format_get(opcode, user_cmd: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
-    # Ensure a valid filename is present
+    # Ensure a valid number of arguments
     if (len(user_cmd) != 2):
         print(f'Too many arguments for command type {user_cmd[0]}')
         return None, False
     
     input_filename = user_cmd[1].strip()
+
+    # Ensure a valid filename is present
     if (not valid_filename(input_filename)):
         print(f'Filename {input_filename} is too long, maximum of 31 characters')
         return None, False
@@ -148,7 +158,7 @@ def format_change(opcode, user_cmd: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
-    # Ensure a valid filename is present
+    # Ensure a valid number of arguments
     if (len(user_cmd) != 3):
         print(f'Too few arguments for command type {user_cmd[0]}')
         return None, False
@@ -156,6 +166,7 @@ def format_change(opcode, user_cmd: list[str]):
     input_old_filename = user_cmd[1].strip()
     input_new_filename = user_cmd[2].strip()
 
+    # Ensure a valid filename is present
     if (not valid_filename(input_old_filename)):
         print(f'Filename {input_old_filename} is too long, maximum of 31 characters')
         return None, False
@@ -181,11 +192,11 @@ def format_change(opcode, user_cmd: list[str]):
     new_filename = f'{int(binascii.hexlify(new_filename), 16):0{new_filename_length*8}b}'
     req = concantenate_bits(req, new_filename)
     
-
     if (DEV_MODE):
         print(f'debug format_change(): binary_str {req}\n')
     return req, True
 
+# Format help request
 def format_help(opcode):
     req = '0b'
     req += concantenate_bits(f'{opcode:03b}', f'{0:05b}')
@@ -194,6 +205,7 @@ def format_help(opcode):
         print(f'debug format_help(): binary_str {req}\n')
     return req, True
 
+# Repurposed to just concat strings
 def concantenate_bits(left, right):
     return left + right
 
@@ -205,6 +217,7 @@ def user_requests():
         user_cmd = input()
     return user_cmd.strip().split()
 
+# Decode the response from server
 def decode_response(res, cmd):
     last_bit_of_res, file_size_bits, filename, is_get = 0, 0, None, False
     
@@ -280,8 +293,9 @@ def run_client():
                 if (success):
                     if (DEBUG_MODE):
                         print(f'Debug - Request message being sent: {req}')
-
                     s.send(req.encode())
+
+                    # If command is a put, send the file after the request
                     if (is_put):
                         with open(f'{CLIENT_FILES_PATH}/{cmd[1]}', 'rb') as file:
                             for line in file.readlines():
@@ -291,7 +305,6 @@ def run_client():
                                 # Binary rep of the line data
                                 line_data = f'{int(binascii.hexlify(file_lines), 16):0{line_size*8}b}' 
                                 s.send(line_data.encode())
-
                     print('Request sent, awaiting response...')
                 
                     data = s.recv(1024)
@@ -301,6 +314,7 @@ def run_client():
 
                     last_bit_of_res, file_size_bits, filename, is_get = decode_response(res, cmd)
 
+                    # If command is a get, retrieve the file after the response
                     if (is_get):
                         file_data = ''
                         # Incase some data was passed with response
@@ -333,9 +347,7 @@ def run_client():
 
 # Main program execution
 if __name__ == '__main__':
-
     for i, arg in enumerate(sys.argv):
-        print(arg)
         if i == 1:
             HOSTNAME = str(arg)
         elif i == 2:

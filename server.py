@@ -205,6 +205,8 @@ def run_server():
 
                 success, res, last_bit_of_req, file_size_bits, filename, is_get, is_put = decode_request(req)
                 if (success):
+
+                    # If command is a put, retrieve the file after the request
                     if (is_put):
                         file_data = ''
                         # Means there is some data passed within the request
@@ -235,6 +237,7 @@ def run_server():
                         print(f'Debug - Response message being sent: {res}')
                     connection.send(res.encode())
 
+                    # If request is a get, send the file after the response
                     if (is_get):
                         with open(f'{SERVER_FILES_PATH}/{filename}', 'rb') as file:
                             for line in file.readlines():
@@ -257,9 +260,7 @@ def run_server():
 
 # Main program execution
 if __name__ == '__main__':
-
     for i, arg in enumerate(sys.argv):
-        print(arg)
         if i == 1:
             HOSTNAME = str(arg)
         elif i == 2:
@@ -269,7 +270,7 @@ if __name__ == '__main__':
         elif i == 4:
             DEV_MODE = int(arg)
     
-    # Start client
+    # Start server
     print('Hostname and port accepted... attempting to run server\n')
     run_server()
 
