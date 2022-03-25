@@ -284,6 +284,9 @@ def run_client():
 
                 req, success, is_put = format_request(cmd)
                 if (success):
+                    if (DEBUG_MODE):
+                        print(f'Debug - Request message being sent: {req}')
+
                     s.send(req.encode())
                     if (is_put):
                         with open(f'{CLIENT_FILES_PATH}/{cmd[1]}', 'rb') as file:
@@ -299,6 +302,9 @@ def run_client():
                 
                 data = s.recv(1024)
                 res = data.decode()
+                if (DEBUG_MODE):
+                    print(f'Debug - Response message received: {res}')
+                    
                 last_bit_of_res, file_size_bits, filename, is_get = decode_response(res, cmd)
 
                 if (is_get):

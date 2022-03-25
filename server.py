@@ -128,6 +128,8 @@ def response_change(res, req):
             # Check if name updated successfully
             if (exists(f'{SERVER_FILES_PATH}/{new_filename}')):
                 success = True
+                res += f'{PUT_CHANGE:03b}'
+                res += f'{0:05b}'
             else:
                 res = unsuccessful_change(res)
     else:
@@ -190,8 +192,8 @@ def run_server():
             print(f'Server is listening to port {PORT} at host {HOSTNAME}...\n')
 
             connection, address = s.accept()
+            print('Server connected to client...\n')
             while(True):
-                print('Server connected to client...\n')
 
                 data = connection.recv(1024)
                 if not data:
@@ -202,40 +204,31 @@ def run_server():
                     continue
 
                 req = data.decode()
+                if (DEBUG_MODE):
+                    print(f'Debug - Request message received: {req}')
+
                 print('Request received...')
                 print('Decoding request...\n')
 
                 success, res, last_bit_of_req, file_size_bits, filename, is_get, is_put = decode_request(req)
                 if (success):
-                    if (is_get):
-                        # generate response
-                        connection.send(res.encode())
-                        with open(f'{SERVER_FILES_PATH}/{filename}', 'rb') as file:
-                            for line in file.readlines():
-                                file_lines = line
-                                line_size = int(len(line.hex())/2)
+                    if (is_put):
+                        file_data = ''
+                        # Means there is some data passed within the request
+                        if (len(req) > last_bit_of_req):
+                            file_data = req[last_bit_of_req:]
 
-                                # Binary rep of line data
-                                line_data = f'{int(binascii.hexlify(file_lines), 16):0{line_size*8}b}'
-                                connection.send(line_data.encode())
-                    else:
-                        if (is_put):
-                            file_data = ''
-                            # Means there is some data passed within the request
-                            if (len(req) > last_bit_of_req):
-                                file_data = req[last_bit_of_req:]
-
+                        file_data_remaining = file_size_bits - len(file_data)
+                        while (file_data_remaining > 0):
+                            data = connection.recv(1024)
+                            data = data.decode()
+                            file_data += data
                             file_data_remaining = file_size_bits - len(file_data)
-                            while (file_data_remaining > 0):
-                                data = connection.recv(1024)
-                                data = data.decode()
-                                file_data += data
-                                file_data_remaining = file_size_bits - len(file_data)
 
-                            bin_to_int = int(file_data, 2)
-                            file_data = binascii.unhexlify('%x' % bin_to_int)
-                            with open(f'{SERVER_FILES_PATH}/{filename}', 'wb') as file:
-                                file.write(file_data)
+                        bin_to_int = int(file_data, 2)
+                        file_data = binascii.unhexlify('%x' % bin_to_int)
+                        with open(f'{SERVER_FILES_PATH}/{filename}', 'wb') as file:
+                            file.write(file_data)
 
                         if (exists(f'{SERVER_FILES_PATH}/{filename}')):
                             # Binary rep of sucessful put
@@ -244,10 +237,24 @@ def run_server():
                         else:
                             res = error_file(res)
 
-                        # generate response
-                        connection.send(res.encode())
-                else:
                     # generate response
+                    if (DEBUG_MODE):
+                        print(f'Debug - Response message being sent: {res}')
+                    connection.send(res.encode())
+
+                    if (is_get):
+                        with open(f'{SERVER_FILES_PATH}/{filename}', 'rb') as file:
+                            for line in file.readlines():
+                                file_lines = line
+                                line_size = int(len(line.hex())/2)
+
+                                # Binary rep of line data
+                                line_data = f'{int(binascii.hexlify(file_lines), 16):0{line_size*8}b}'
+                                connection.send(line_data.encode())
+                else:
+                    # generate response                    
+                    if (DEBUG_MODE):
+                        print(f'Debug - Response message being sent: {res}')
                     connection.send(res.encode())
                 
                 print('Response sent...')
