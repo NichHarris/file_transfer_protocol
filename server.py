@@ -1,6 +1,6 @@
 """ 
 Nicholas Harris
-40111093
+40111093 - n_arri
 COEN 366 - FTP Project Server File
 Section: WJ-X
 
@@ -53,7 +53,6 @@ def decode_request(req):
         res = unkwn_req(res)
     return success, res, last_bit, file_size, filename, is_get, is_put
 
-# TODO: Test 
 def response_put(res, req):
     filename_length = int(req[5:10], 2)
 
@@ -68,7 +67,6 @@ def response_put(res, req):
 
     return True, res, last_bit_of_req, file_size_bits, filename
 
-# TODO: 
 def response_get(res, req):
     is_get = True
     res += req[2:5]
@@ -95,7 +93,6 @@ def response_get(res, req):
         is_get = False
     return success, res, filename, is_get
 
-# TODO: 
 def response_change(res, req):
     success = False
     old_filename_length = int(req[5:10], 2)
@@ -137,7 +134,6 @@ def response_change(res, req):
   
     return success, res, new_filename
 
-# TODO: Test
 def error_file(res):
     # Binary rep of file not found req code
     res += f'{FILE_NOT_FOUND:03b}'
@@ -147,7 +143,6 @@ def error_file(res):
         print(f'debug error_file(): binary_str {res}\n')
     return res
 
-# TODO: Test
 def unkwn_req(res):
     # Binary rep of unknown req code
     res += f'{UNKNOWN_REQ:03b}'
@@ -157,7 +152,6 @@ def unkwn_req(res):
         print(f'debug unkwn_req(): binary_str {res}\n')
     return res
 
-# TODO: Test
 def unsuccessful_change(res):
     # Binary rep of unsuccessful req code
     res += f'{FAIL_CHANGE:03b}'
@@ -197,18 +191,17 @@ def run_server():
 
                 data = connection.recv(1024)
                 if not data:
-                    print('Client disconnected...\n')
+                    print('Client disconnected...')
                     connection.close()
-                    print('Listening for connection...')
+                    print('Listening for connection...\n')
                     connection, address = s.accept()
                     continue
 
+                print('Request received...')
                 req = data.decode()
                 if (DEBUG_MODE):
                     print(f'Debug - Request message received: {req}')
-
-                print('Request received...')
-                print('Decoding request...\n')
+                print('Decoding request...')
 
                 success, res, last_bit_of_req, file_size_bits, filename, is_get, is_put = decode_request(req)
                 if (success):
@@ -257,7 +250,7 @@ def run_server():
                         print(f'Debug - Response message being sent: {res}')
                     connection.send(res.encode())
                 
-                print('Response sent...')
+                print('Response sent...\n')
         except Exception as e:
             print('Closing socket due to exception:' + e)
 

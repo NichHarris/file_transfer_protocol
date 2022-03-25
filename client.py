@@ -1,6 +1,6 @@
 """ 
 Nicholas Harris
-40111093
+40111093 - n_arri
 COEN 366 - FTP Project Client File
 Section: WJ-X
 
@@ -28,14 +28,6 @@ opcodes = {
     'help': 0b011
 }
 
-# Request user input for hostname and port number
-def request_input():
-    print('Enter a valid hostname (ex: localhost):')
-    input(HOSTNAME)
-    print('\nEnter a valid port (ex: 80, 12000, etc.):')
-    input(PORT)
-
-# TODO: Validate it is a command, validate filename is not too long etc (<32 chars)..
 def validate_user_cmd(user_cmd: list[str]):
     is_valid = True
     if (len(user_cmd) == 0):
@@ -79,15 +71,14 @@ def format_request(user_cmd: list[str]):
     elif (opcode == 0b011):
         req, status = format_help(opcode)
     else:
-        req, status = format_unknown(user_cmd)
+        req, status = format_unknown()
 
     return req, status, is_put
 
-def format_unknown(user_cmd):
+def format_unknown():
     req = '0b'
     req += f'{255:08b}'
     return req, True
-
 
 # TODO: Test
 def format_put(opcode, user_cmd: list[str]):
@@ -96,10 +87,12 @@ def format_put(opcode, user_cmd: list[str]):
 
     # Ensure a valid filename is present
     if (len(user_cmd) != 2):
+        print(f'Too many arguments for command type {user_cmd[0]}')
         return None, False
 
     input_filename = user_cmd[1].strip()
     if (not valid_filename(input_filename)):
+        print(f'Filename {input_filename} is too long, maximum of 31 characters')
         return None, False
 
     if (exists(f'{CLIENT_FILES_PATH}/{input_filename}')):
@@ -124,17 +117,18 @@ def format_put(opcode, user_cmd: list[str]):
         return None, False
     return req, True
 
-# TODO: Test
 def format_get(opcode, user_cmd: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
     # Ensure a valid filename is present
     if (len(user_cmd) != 2):
+        print(f'Too many arguments for command type {user_cmd[0]}')
         return None, False
     
     input_filename = user_cmd[1].strip()
     if (not valid_filename(input_filename)):
+        print(f'Filename {input_filename} is too long, maximum of 31 characters')
         return None, False
 
     # Binary of length of filename
@@ -150,21 +144,23 @@ def format_get(opcode, user_cmd: list[str]):
         print(f'debug format_get(): binary_str {req}\n')
     return req, True
 
-# TODO: Test
 def format_change(opcode, user_cmd: list[str]):
     # Start encoding binary string to be sent to server
     req = '0b'
 
     # Ensure a valid filename is present
     if (len(user_cmd) != 3):
+        print(f'Too few arguments for command type {user_cmd[0]}')
         return None, False
 
     input_old_filename = user_cmd[1].strip()
     input_new_filename = user_cmd[2].strip()
 
     if (not valid_filename(input_old_filename)):
+        print(f'Filename {input_old_filename} is too long, maximum of 31 characters')
         return None, False
     if (not valid_filename(input_new_filename)):
+        print(f'Filename {input_new_filename} is too long, maximum of 31 characters')
         return None, False
 
     # Binary rep of length of old_filename
@@ -190,7 +186,6 @@ def format_change(opcode, user_cmd: list[str]):
         print(f'debug format_change(): binary_str {req}\n')
     return req, True
 
-# TODO: Test
 def format_help(opcode):
     req = '0b'
     req += concantenate_bits(f'{opcode:03b}', f'{0:05b}')
@@ -199,7 +194,6 @@ def format_help(opcode):
         print(f'debug format_help(): binary_str {req}\n')
     return req, True
 
-# TODO: Test
 def concantenate_bits(left, right):
     return left + right
 
@@ -273,10 +267,10 @@ def run_client():
         try:
             s.connect((HOSTNAME, PORT))
             print('Client connected...')
-            print('File-Transfer Protocol client active...\n')
+            print('File-Transfer Protocol client active...')
 
             while(True):
-                print('Enter FTP commands:')
+                print('\nEnter FTP commands:')
 
                 cmd = user_requests()
                 if (cmd[0].lower() == 'bye'):
@@ -300,35 +294,35 @@ def run_client():
 
                     print('Request sent, awaiting response...')
                 
-                data = s.recv(1024)
-                res = data.decode()
-                if (DEBUG_MODE):
-                    print(f'Debug - Response message received: {res}')
-                    
-                last_bit_of_res, file_size_bits, filename, is_get = decode_response(res, cmd)
+                    data = s.recv(1024)
+                    res = data.decode()
+                    if (DEBUG_MODE):
+                        print(f'Debug - Response message received: {res}')
 
-                if (is_get):
-                    file_data = ''
-                    # Incase some data was passed with response
-                    if (len(res) > last_bit_of_res):
-                        file_data = req[0:]
+                    last_bit_of_res, file_size_bits, filename, is_get = decode_response(res, cmd)
 
-                    # Receive file
-                    file_data_remaining = file_size_bits - len(file_data)
-                    while (file_data_remaining > 0):
-                        data = s.recv(1024)
-                        data = data.decode()
-                        file_data += data
+                    if (is_get):
+                        file_data = ''
+                        # Incase some data was passed with response
+                        if (len(res) > last_bit_of_res):
+                            file_data = req[0:]
+
+                        # Receive file
                         file_data_remaining = file_size_bits - len(file_data)
-                    
-                    # Write to file
-                    bin_to_int = int(file_data, 2)
-                    file_data = binascii.unhexlify('%x' % bin_to_int)
-                    with open(f'{CLIENT_FILES_PATH}/{filename}', 'wb') as file:
-                        file.write(file_data)
-                    
-                    if (exists(f'{CLIENT_FILES_PATH}/{filename}')):
-                        print(f'{filename} has been downloaded successfully.')
+                        while (file_data_remaining > 0):
+                            data = s.recv(1024)
+                            data = data.decode()
+                            file_data += data
+                            file_data_remaining = file_size_bits - len(file_data)
+                        
+                        # Write to file
+                        bin_to_int = int(file_data, 2)
+                        file_data = binascii.unhexlify('%x' % bin_to_int)
+                        with open(f'{CLIENT_FILES_PATH}/{filename}', 'wb') as file:
+                            file.write(file_data)
+                        
+                        if (exists(f'{CLIENT_FILES_PATH}/{filename}')):
+                            print(f'{filename} has been downloaded successfully.')
 
             print('\nClosing client socket...')
         except KeyboardInterrupt:
