@@ -17,12 +17,12 @@ No files that are not included in the default python library are included in thi
 1. Starting the server
 	- Open a new terminal
 	- The terminal command to run the server is formatted as such: `python server.py hostname port debug_mode`
-	- To run the server type into the terminal: `pythn server.py localhost 80 1`
+	- To run the server type into the terminal: `python server.py localhost 80 1`
 
 2. Starting the client
 	- Open a second terminal
 	- The terminal command to run the client is formatted as such: `python client.py hostname port debug_mode`
-	- To run the client type into the terminal: `pythn client.py localhost 80 1`
+	- To run the client type into the terminal: `python client.py localhost 80 1`
 
 3. Entering commands
 	- Commands will be accepted one by one. The client will prompt the user to enter a command ex: `put test.txt`
