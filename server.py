@@ -21,6 +21,7 @@ SERVER_FILES_PATH = 'server_files'
 DEBUG_MODE = False
 DEV_MODE = False
 
+# 3 bit opcodes for each response
 PUT_CHANGE = 0b000
 GET = 0b001
 FILE_NOT_FOUND = 0b010
