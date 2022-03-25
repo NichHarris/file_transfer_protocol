@@ -9,6 +9,7 @@ I, Nicholas Harris, am the sole author of the file
 
 import binascii
 from genericpath import exists
+from operator import le
 import os
 import sys
 import socket
@@ -254,7 +255,9 @@ def run_server():
                         print(f'Debug - Response message being sent: {res}')
                     connection.send(res.encode())
                 
-                print('Response sent...\n')
+                print('Response sent...\n')        
+        except KeyboardInterrupt:
+            print('\nClosing socket due to keyboard interrupt...')
         except Exception as e:
             print('Closing socket due to exception:' + e)
         finally:   
