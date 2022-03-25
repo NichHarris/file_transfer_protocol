@@ -12,6 +12,7 @@ from genericpath import exists
 import os
 import sys
 import socket
+from typing import final
 
 # Default host and port
 PORT = 12000
@@ -338,12 +339,12 @@ def run_client():
                         if (exists(f'{CLIENT_FILES_PATH}/{filename}')):
                             print(f'{filename} has been downloaded successfully.')
 
-            print('\nClosing client socket...')
         except KeyboardInterrupt:
             print('\nClosing socket due to keyboard interrupt...')
         except Exception as e:
             print('\nClosing socket due to exception: ' + e)
-
+        finally:
+            print('\nClosing client socket...')
 
 # Main program execution
 if __name__ == '__main__':

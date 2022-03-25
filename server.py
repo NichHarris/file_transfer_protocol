@@ -257,7 +257,8 @@ def run_server():
                 print('Response sent...\n')
         except Exception as e:
             print('Closing socket due to exception:' + e)
-
+        finally:   
+            print('\nClosing server...')
 
 # Main program execution
 if __name__ == '__main__':
