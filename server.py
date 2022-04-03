@@ -43,6 +43,7 @@ def decode_request(req):
     last_bit, file_size, filename = 0, 0, None
 
     if (req[2:5] == '011'):
+        success = True
         res = response_help(res)
     elif(req[2:5] == '000'):
         is_put = True
@@ -54,6 +55,22 @@ def decode_request(req):
     else:
         res = unkwn_req(res)
     return success, res, last_bit, file_size, filename, is_get, is_put
+
+def response_help(res):
+    # String rep of help str
+    help_str = 'Help: get put change help bye'
+    # Binary rep of rescode
+    res += f'{HELP:03b}'
+
+    # Binary rep of help str length
+    res += f'{len(help_str):05b}'
+    
+    # Binary rep of help str TODO: Change this?
+    res += str(bin(int(binascii.hexlify(help_str.encode()), 16)))
+
+    if (DEV_MODE):
+        print(f'debug response_help(): binary_str {res}\n')
+    return res
 
 def response_put(res, req):
     filename_length = int(req[5:10], 2)
@@ -163,22 +180,6 @@ def unsuccessful_change(res):
         print(f'debug unsuccessful_change(): binary_str {res}\n')
     return res
 
-def response_help(res):
-    # String rep of help str
-    help_str = 'Help: get put change help bye'
-    # Binary rep of rescode
-    res += f'{HELP:03b}'
-
-    # Binary rep of help str length
-    res += f'{len(help_str):05b}'
-    
-    # Binary rep of help str TODO: Change this?
-    res += str(bin(int(binascii.hexlify(help_str.encode()), 16)))
-
-    if (DEV_MODE):
-        print(f'debug response_help(): binary_str {res}\n')
-    return res
-
 # Initialize and run the socket
 def run_server():
     with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
@@ -207,7 +208,6 @@ def run_server():
 
                 success, res, last_bit_of_req, file_size_bits, filename, is_get, is_put = decode_request(req)
                 if (success):
-
                     # If command is a put, retrieve the file after the request
                     if (is_put):
                         file_data = ''
