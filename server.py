@@ -16,7 +16,7 @@ import socket
 
 # Default host and port
 PORT = 12000
-HOSTNAME = '127.0.0.1'
+HOSTNAME = 'localhost'
 CLIENT_FILES_PATH = 'client_files'
 SERVER_FILES_PATH = 'server_files'
 DEBUG_MODE = False
