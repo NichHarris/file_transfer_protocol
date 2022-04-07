@@ -35,4 +35,4 @@ No files that are not included in the default python library are included in thi
 	- To exit the client either use a keyboard interrupt (ctrl+c) or type in the command `bye`
 
 5. Exiting the server
-	- To exit the server, close the terminal
+	- To exit the server, use a keyboard interrupt (ctrl+c) or close the terminal
